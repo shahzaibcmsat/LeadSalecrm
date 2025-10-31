@@ -439,7 +439,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       } else {
         // Use Microsoft Graph (default)
-        result = await sendEmail(lead.email, subject, body);
+        result = await sendEmail(
+          lead.email, 
+          emailSubject, 
+          body, 
+          undefined, // fromEmail (use default)
+          lastEmail?.messageId || undefined // inReplyTo for threading
+        );
+        
+        // Preserve conversation ID from previous emails
+        if (lastEmail?.conversationId && !result.conversationId) {
+          result.conversationId = lastEmail.conversationId;
+        }
       }
 
       const fromEmail = provider === 'sendgrid' 

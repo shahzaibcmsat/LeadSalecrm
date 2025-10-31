@@ -134,11 +134,20 @@ export async function getGraphClient(): Promise<Client | null> {
 }
 
 // Send email using Microsoft Graph API
-export async function sendEmail(to: string, subject: string, body: string, fromEmail?: string): Promise<{ success: boolean; message: string; details?: any; messageId?: string; conversationId?: string }> {
+export async function sendEmail(
+  to: string, 
+  subject: string, 
+  body: string, 
+  fromEmail?: string,
+  inReplyTo?: string // Message ID to reply to for threading
+): Promise<{ success: boolean; message: string; details?: any; messageId?: string; conversationId?: string }> {
   console.log('\n📧 ========== EMAIL SEND ATTEMPT ==========');
   console.log('To:', to);
   console.log('Subject:', subject);
   console.log('From:', fromEmail || process.env.EMAIL_FROM_ADDRESS);
+  if (inReplyTo) {
+    console.log('🧵 In-Reply-To:', inReplyTo);
+  }
   
   const client = await getGraphClient();
 
@@ -170,7 +179,7 @@ export async function sendEmail(to: string, subject: string, body: string, fromE
     console.log('📤 Attempting to send via Microsoft Graph...');
     console.log('   Using sender:', sendFromUser);
 
-    const sendMail = {
+    const sendMail: any = {
       message: {
         subject: subject,
         body: {
@@ -187,6 +196,55 @@ export async function sendEmail(to: string, subject: string, body: string, fromE
       },
       saveToSentItems: true  // Save to sent items for proper delivery
     };
+
+    // Add threading headers if replying to an existing message
+    if (inReplyTo) {
+      console.log('🧵 Adding email threading headers');
+      // Try to get the original message to reply to it properly
+      try {
+        const originalMessage = await client.api(`/users/${sendFromUser}/messages/${inReplyTo}`).get();
+        
+        // Use the reply endpoint for proper threading
+        console.log('   Using createReply for proper threading');
+        const reply = await client.api(`/users/${sendFromUser}/messages/${inReplyTo}/createReply`).post({});
+        
+        // Update the reply with our content
+        await client.api(`/users/${sendFromUser}/messages/${reply.id}`).patch({
+          body: {
+            contentType: 'Text',
+            content: body
+          }
+        });
+        
+        // Send the reply
+        await client.api(`/users/${sendFromUser}/messages/${reply.id}/send`).post({});
+        
+        console.log('✅ Email sent as reply via Microsoft Graph!');
+        console.log('   Message ID:', reply.id);
+        console.log('   Conversation ID:', reply.conversationId || originalMessage.conversationId);
+        
+        return {
+          success: true,
+          message: 'Email sent as reply via Microsoft Graph',
+          details: { to, subject, from: sendFromUser },
+          messageId: reply.id,
+          conversationId: reply.conversationId || originalMessage.conversationId
+        };
+      } catch (replyError) {
+        console.warn('⚠️ Could not use createReply, sending as new message with headers:', replyError);
+        // Fall back to sending with custom headers
+        sendMail.message.internetMessageHeaders = [
+          {
+            name: 'In-Reply-To',
+            value: `<${inReplyTo}>`
+          },
+          {
+            name: 'References',
+            value: `<${inReplyTo}>`
+          }
+        ];
+      }
+    }
 
     // For app-only permissions, use /users/{id}/sendMail endpoint
     const response = await client.api(`/users/${sendFromUser}/sendMail`).post(sendMail);
