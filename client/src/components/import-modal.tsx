@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { Upload, FileSpreadsheet, X, Loader2 } from "lucide-react";
+import { Upload, X, Loader2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -8,20 +8,17 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 
 interface ImportModalProps {
   isOpen: boolean;
   onClose: () => void;
   onImport: (file: File) => Promise<void>;
-  onImportFromSheets: (sheetUrl: string) => Promise<void>;
 }
 
-export function ImportModal({ isOpen, onClose, onImport, onImportFromSheets }: ImportModalProps) {
+export function ImportModal({ isOpen, onClose, onImport }: ImportModalProps) {
   const [dragActive, setDragActive] = useState(false);
   const [file, setFile] = useState<File | null>(null);
-  const [sheetUrl, setSheetUrl] = useState("");
   const [isImporting, setIsImporting] = useState(false);
   const { toast } = useToast();
 
@@ -66,19 +63,6 @@ export function ImportModal({ isOpen, onClose, onImport, onImportFromSheets }: I
     try {
       await onImport(file);
       setFile(null);
-      onClose();
-    } finally {
-      setIsImporting(false);
-    }
-  };
-
-  const handleImportSheets = async () => {
-    if (!sheetUrl.trim()) return;
-    
-    setIsImporting(true);
-    try {
-      await onImportFromSheets(sheetUrl);
-      setSheetUrl("");
       onClose();
     } finally {
       setIsImporting(false);
@@ -158,55 +142,11 @@ export function ImportModal({ isOpen, onClose, onImport, onImportFromSheets }: I
                 ) : (
                   <>
                     <Upload className="w-4 h-4 mr-2" />
-                    Import from File
+                    Import Leads
                   </>
                 )}
               </Button>
             )}
-          </div>
-
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t" />
-            </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-background px-2 text-muted-foreground">Or</span>
-            </div>
-          </div>
-
-          <div className="space-y-4">
-            <h3 className="text-sm font-medium">Import from Google Sheets</h3>
-            <div className="space-y-2">
-              <Label htmlFor="sheet-url">Google Sheets URL</Label>
-              <Input
-                id="sheet-url"
-                placeholder="https://docs.google.com/spreadsheets/d/..."
-                value={sheetUrl}
-                onChange={(e) => setSheetUrl(e.target.value)}
-                data-testid="input-sheet-url"
-              />
-              <p className="text-xs text-muted-foreground">
-                Make sure the sheet is shared with view access
-              </p>
-            </div>
-            <Button 
-              className="w-full"
-              onClick={handleImportSheets}
-              disabled={isImporting || !sheetUrl.trim()}
-              data-testid="button-import-sheets"
-            >
-              {isImporting ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Importing...
-                </>
-              ) : (
-                <>
-                  <FileSpreadsheet className="w-4 h-4 mr-2" />
-                  Import from Google Sheets
-                </>
-              )}
-            </Button>
           </div>
         </div>
       </DialogContent>

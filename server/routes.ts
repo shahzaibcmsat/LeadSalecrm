@@ -7,7 +7,6 @@ import { insertLeadSchema, insertEmailSchema, insertCompanySchema } from "@share
 import { sendEmail, isMicrosoftGraphConfigured, getAuthorizationUrl, exchangeCodeForTokens } from "./outlook";
 import { sendEmailViaSendGrid, sendEmailViaSendGridAuto, verifySendGridConfig, getSendGridConfig } from "./sendgrid";
 import { Client as SendGridClient } from '@sendgrid/client';
-import { getGoogleSheetsClient, isGoogleSheetsConfigured } from "./google-sheets";
 
 // Dynamic email provider (read from environment; can be changed at runtime)
 function getProvider(): 'sendgrid' | 'microsoft' {
@@ -66,7 +65,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       emailProvider: getProvider(),
       microsoftGraph: isMicrosoftGraphConfigured(),
       sendgrid: sendGridConfig.configured,
-      googleSheets: isGoogleSheetsConfigured(),
       environment: {
         hasClientId: !!process.env.AZURE_CLIENT_ID,
         hasClientSecret: !!process.env.AZURE_CLIENT_SECRET,
@@ -456,72 +454,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Error importing file:", error);
       res.status(400).json({ message: error.message || "Failed to import file" });
-    }
-  });
-
-  app.post("/api/import/sheets", async (req, res) => {
-    try {
-      const { sheetUrl } = req.body;
-      if (!sheetUrl) {
-        return res.status(400).json({ message: "Sheet URL is required" });
-      }
-
-      const spreadsheetIdMatch = sheetUrl.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
-      if (!spreadsheetIdMatch) {
-        return res.status(400).json({ message: "Invalid Google Sheets URL" });
-      }
-      const spreadsheetId = spreadsheetIdMatch[1];
-
-      const client = await getGoogleSheetsClient();
-      const response = await client.spreadsheets.values.get({
-        spreadsheetId,
-        range: "A:Z",
-      });
-
-      const rows = response.data.values;
-      if (!rows || rows.length === 0) {
-        return res.status(400).json({ message: "No data found in sheet" });
-      }
-
-      const headers = rows[0].map((h: any) => String(h).toLowerCase().trim());
-      const nameIndex = headers.findIndex((h: string) => 
-        h.includes("client") && h.includes("name") || h === "name"
-      );
-      const emailIndex = headers.findIndex((h: string) => h.includes("email"));
-      const detailsIndex = headers.findIndex((h: string) => 
-        h.includes("lead") || h.includes("detail") || h.includes("description")
-      );
-
-      if (nameIndex === -1 || emailIndex === -1) {
-        return res.status(400).json({ 
-          message: "Sheet must have 'Client Name' (or 'Name') and 'Email' columns" 
-        });
-      }
-
-      const leads = rows.slice(1).map((row: any[]) => {
-        const clientName = row[nameIndex];
-        const email = row[emailIndex];
-        const leadDetails = detailsIndex !== -1 ? row[detailsIndex] : "";
-
-        if (!clientName || !email) {
-          return null;
-        }
-
-        return {
-          clientName: String(clientName).trim(),
-          email: String(email).trim(),
-          leadDetails: leadDetails ? String(leadDetails).trim() : "",
-          status: "New",
-        };
-      }).filter(Boolean);
-
-      const validatedLeads = leads.map((lead) => insertLeadSchema.parse(lead));
-      const createdLeads = await storage.createLeads(validatedLeads);
-
-      res.json({ success: true, count: createdLeads.length });
-    } catch (error: any) {
-      console.error("Error importing from Google Sheets:", error);
-      res.status(400).json({ message: error.message || "Failed to import from Google Sheets" });
     }
   });
 
