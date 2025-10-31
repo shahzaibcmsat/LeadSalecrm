@@ -40,52 +40,54 @@ export function NotificationBell({ onNotificationClick }: NotificationBellProps)
         <Button
           variant="ghost"
           size="icon"
-          className="relative text-white hover:bg-white/20"
+          className="relative text-white hover:bg-white/20 h-12 w-12"
           data-testid="notification-bell"
         >
-          <Bell className="h-5 w-5" />
+          <Bell className={`h-7 w-7 ${unreadTotal > 0 ? 'animate-pulse' : ''}`} />
           {unreadTotal > 0 && (
             <Badge
               variant="destructive"
-              className="absolute -top-1 -right-1 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs"
+              className="absolute -top-2 -right-2 h-7 w-7 rounded-full p-0 flex items-center justify-center text-sm font-bold animate-pulse shadow-lg"
             >
               {unreadTotal > 9 ? '9+' : unreadTotal}
             </Badge>
           )}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-80" align="end">
+      <PopoverContent className="w-96" align="end">
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="font-semibold text-sm">Email Notifications</h3>
+            <h3 className="font-semibold text-lg">Email Notifications</h3>
             {unreadTotal > 0 && (
-              <Badge variant="secondary">{unreadTotal} unread</Badge>
+              <Badge variant="destructive" className="text-base px-3 py-1">
+                {unreadTotal} unread
+              </Badge>
             )}
           </div>
 
-          <div className="space-y-2 max-h-96 overflow-y-auto">
+          <div className="space-y-3 max-h-[500px] overflow-y-auto">
             {leadsWithUnread.length === 0 ? (
-              <div className="text-center py-8">
-                <Bell className="w-12 h-12 mx-auto mb-2 text-muted-foreground" />
-                <p className="text-sm text-muted-foreground">No new notifications</p>
+              <div className="text-center py-12">
+                <Bell className="w-16 h-16 mx-auto mb-3 text-muted-foreground" />
+                <p className="text-base text-muted-foreground">No new notifications</p>
               </div>
             ) : (
               leadsWithUnread.map((lead) => (
                 <div
                   key={lead.id}
                   onClick={() => handleLeadClick(lead.id)}
-                  className="p-3 rounded-lg border bg-card hover:bg-accent cursor-pointer transition-colors"
+                  className="p-4 rounded-lg border-2 border-red-500 bg-red-50 hover:bg-red-100 cursor-pointer transition-all shadow-md hover:shadow-lg"
                 >
-                  <div className="flex items-start justify-between gap-2 mb-1">
+                  <div className="flex items-start justify-between gap-3 mb-2">
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium text-sm truncate">{lead.clientName}</p>
-                      <p className="text-xs text-muted-foreground truncate">{lead.email}</p>
+                      <p className="font-bold text-base truncate text-red-900">{lead.clientName}</p>
+                      <p className="text-sm text-red-700 truncate">{lead.email}</p>
                     </div>
-                    <Badge variant="destructive" className="shrink-0">
+                    <Badge variant="destructive" className="shrink-0 text-base px-3 py-1 animate-pulse">
                       {perLeadUnread[lead.id]} new
                     </Badge>
                   </div>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs text-red-600 font-medium">
                     Last updated {formatDistanceToNow(new Date(lead.updatedAt), { addSuffix: true })}
                   </p>
                 </div>
@@ -96,8 +98,8 @@ export function NotificationBell({ onNotificationClick }: NotificationBellProps)
           {leadsWithUnread.length > 0 && (
             <Button
               variant="outline"
-              size="sm"
-              className="w-full"
+              size="lg"
+              className="w-full text-base"
               onClick={() => notificationStore.reset()}
             >
               Mark all as read
