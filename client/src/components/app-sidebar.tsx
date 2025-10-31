@@ -132,7 +132,7 @@ export function AppSidebar() {
         <div className="flex items-center gap-2">
           <div className="h-1.5 w-1.5 rounded-full bg-fmd-green animate-pulse"></div>
           <div className="text-xs text-muted-foreground font-medium">
-            FMD Sales CRM v1.0.0
+            FMD Sales CRM Created by <a href="https://napollo.net/" target="_blank" rel="noopener noreferrer" className="text-fmd-green hover:text-fmd-green-dark font-semibold hover:underline">Napollo</a>.
           </div>
         </div>
       </SidebarFooter>
