@@ -51,6 +51,12 @@ export function LeadCard({ lead, onReply, onViewDetails, onStatusChange }: LeadC
             <h3 className="font-semibold text-base truncate text-fmd-black" data-testid={`text-client-name-${lead.id}`}>
               {lead.clientName}
             </h3>
+            {(lead as any).company && (
+              <Badge variant="outline" className="text-xs gap-1">
+                <Building2 className="w-3 h-3" />
+                {(lead as any).company.name}
+              </Badge>
+            )}
           </div>
           <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2 relative">
             <div className="relative">

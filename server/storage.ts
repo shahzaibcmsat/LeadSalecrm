@@ -2,10 +2,12 @@ import { leads, emails, companies, type Lead, type InsertLead, type Email, type 
 import { db } from "./db";
 import { eq, desc } from "drizzle-orm";
 
+export type LeadWithCompany = Lead & { company?: Company | null };
+
 export interface IStorage {
-  getAllLeads(): Promise<Lead[]>;
-  getLeadsByCompany(companyId: string): Promise<Lead[]>;
-  getLead(id: string): Promise<Lead | undefined>;
+  getAllLeads(): Promise<LeadWithCompany[]>;
+  getLeadsByCompany(companyId: string): Promise<LeadWithCompany[]>;
+  getLead(id: string): Promise<LeadWithCompany | undefined>;
   getLeadByEmail(email: string): Promise<Lead | undefined>;
   createLead(lead: InsertLead): Promise<Lead>;
   updateLead(id: string, lead: InsertLead): Promise<Lead | undefined>;
@@ -22,17 +24,56 @@ export interface IStorage {
 }
 
 export class DatabaseStorage implements IStorage {
-  async getAllLeads(): Promise<Lead[]> {
-    return await db.select().from(leads).orderBy(desc(leads.createdAt));
+  async getAllLeads(): Promise<LeadWithCompany[]> {
+    const result = await db
+      .select({
+        lead: leads,
+        company: companies,
+      })
+      .from(leads)
+      .leftJoin(companies, eq(leads.companyId, companies.id))
+      .orderBy(desc(leads.createdAt));
+    
+    return result.map(({ lead, company }) => ({
+      ...lead,
+      company: company || null,
+    }));
   }
 
-  async getLeadsByCompany(companyId: string): Promise<Lead[]> {
-    return await db.select().from(leads).where(eq(leads.companyId, companyId)).orderBy(desc(leads.createdAt));
+  async getLeadsByCompany(companyId: string): Promise<LeadWithCompany[]> {
+    const result = await db
+      .select({
+        lead: leads,
+        company: companies,
+      })
+      .from(leads)
+      .leftJoin(companies, eq(leads.companyId, companies.id))
+      .where(eq(leads.companyId, companyId))
+      .orderBy(desc(leads.createdAt));
+    
+    return result.map(({ lead, company }) => ({
+      ...lead,
+      company: company || null,
+    }));
   }
 
-  async getLead(id: string): Promise<Lead | undefined> {
-    const [lead] = await db.select().from(leads).where(eq(leads.id, id));
-    return lead || undefined;
+  async getLead(id: string): Promise<LeadWithCompany | undefined> {
+    const result = await db
+      .select({
+        lead: leads,
+        company: companies,
+      })
+      .from(leads)
+      .leftJoin(companies, eq(leads.companyId, companies.id))
+      .where(eq(leads.id, id));
+    
+    if (result.length === 0) return undefined;
+    
+    const { lead, company } = result[0];
+    return {
+      ...lead,
+      company: company || null,
+    };
   }
 
   async getLeadByEmail(email: string): Promise<Lead | undefined> {

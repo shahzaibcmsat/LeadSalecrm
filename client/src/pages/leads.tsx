@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Lead, Email } from "@shared/schema";
+import { Lead, Email, Company } from "@shared/schema";
 import { LeadCard } from "@/components/lead-card";
 import { EmailComposerModal } from "@/components/email-composer-modal";
 import { LeadDetailPanel } from "@/components/lead-detail-panel";
@@ -15,7 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Search, Loader2, Filter, Plus } from "lucide-react";
+import { Search, Loader2, Filter, Plus, Building2 } from "lucide-react";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { notificationStore } from "@/lib/notificationStore";
@@ -28,10 +28,15 @@ export default function Leads() {
   const [replyingToLead, setReplyingToLead] = useState<Lead | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [companyFilter, setCompanyFilter] = useState("all");
   const { toast } = useToast();
 
   const { data: leads = [], isLoading } = useQuery<Lead[]>({
     queryKey: ['/api/leads'],
+  });
+
+  const { data: companies = [] } = useQuery<Company[]>({
+    queryKey: ['/api/companies'],
   });
 
   const { data: emails = [] } = useQuery<Email[]>({
@@ -115,7 +120,12 @@ export default function Leads() {
     
     const matchesStatus = statusFilter === "all" || lead.status === statusFilter;
     
-    return matchesSearch && matchesStatus;
+    const matchesCompany = 
+      companyFilter === "all" || 
+      (companyFilter === "none" && !lead.companyId) ||
+      lead.companyId === companyFilter;
+    
+    return matchesSearch && matchesStatus && matchesCompany;
   });
 
   return (
@@ -152,6 +162,23 @@ export default function Leads() {
         </div>
         <div className="flex items-center gap-2">
           <Filter className="w-4 h-4 text-muted-foreground" />
+          <Select value={companyFilter} onValueChange={setCompanyFilter}>
+            <SelectTrigger className="w-48" data-testid="select-company-filter">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Companies</SelectItem>
+              <SelectItem value="none">No Company</SelectItem>
+              {companies.map((company) => (
+                <SelectItem key={company.id} value={company.id}>
+                  <div className="flex items-center gap-2">
+                    <Building2 className="w-3 h-3" />
+                    {company.name}
+                  </div>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
             <SelectTrigger className="w-48" data-testid="select-filter">
               <SelectValue />
@@ -179,7 +206,7 @@ export default function Leads() {
         <Card>
           <CardContent className="p-12 text-center">
             <p className="text-sm text-muted-foreground">
-              {searchTerm || statusFilter !== "all" 
+              {searchTerm || statusFilter !== "all" || companyFilter !== "all"
                 ? "No leads match your filters" 
                 : "No leads yet. Import some to get started."}
             </p>
