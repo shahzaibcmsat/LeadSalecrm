@@ -153,6 +153,114 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // SendGrid Inbound Parse Webhook
+  // This endpoint receives incoming emails from SendGrid
+  app.post("/api/webhooks/sendgrid/inbound", upload.single('email'), async (req, res) => {
+    try {
+      console.log('📨 Received inbound email webhook from SendGrid');
+      
+      // SendGrid sends email data as multipart/form-data
+      const fromEmail = req.body.from;
+      const toEmail = req.body.to;
+      const subject = req.body.subject || '(No Subject)';
+      const textBody = req.body.text || '';
+      const htmlBody = req.body.html || '';
+      const headers = req.body.headers || '';
+      
+      console.log(`   From: ${fromEmail}`);
+      console.log(`   To: ${toEmail}`);
+      console.log(`   Subject: ${subject}`);
+      
+      if (!fromEmail) {
+        console.log('⚠️ No sender email found in webhook');
+        return res.status(200).send('OK'); // Return 200 to prevent retries
+      }
+
+      // Extract the actual email address (remove name if present)
+      const emailMatch = fromEmail.match(/<(.+?)>/) || fromEmail.match(/([^\s<>]+@[^\s<>]+)/);
+      const senderEmail = emailMatch ? (emailMatch[1] || emailMatch[0]) : fromEmail;
+      
+      console.log(`   Extracted sender: ${senderEmail}`);
+
+      // Try to find a lead with this email address
+      const lead = await storage.getLeadByEmail(senderEmail);
+      
+      if (!lead) {
+        console.log(`⚠️ No lead found for email: ${senderEmail}`);
+        return res.status(200).send('OK'); // Return 200 to prevent retries
+      }
+
+      console.log(`✅ Found lead: ${lead.clientName}`);
+
+      // Parse headers to get Message-ID and In-Reply-To
+      let messageId: string | null = null;
+      let inReplyTo: string | null = null;
+      let conversationId: string | null = null;
+      
+      if (headers) {
+        const messageIdMatch = headers.match(/Message-ID:\s*<?([^>\n]+)>?/i);
+        const inReplyToMatch = headers.match(/In-Reply-To:\s*<?([^>\n]+)>?/i);
+        
+        messageId = messageIdMatch ? messageIdMatch[1].trim() : null;
+        inReplyTo = inReplyToMatch ? inReplyToMatch[1].trim() : null;
+        
+        console.log(`   Message-ID: ${messageId}`);
+        console.log(`   In-Reply-To: ${inReplyTo}`);
+      }
+
+      // Check if we already have this message (prevent duplicates)
+      if (messageId) {
+        const existing = await storage.getEmailByMessageId(messageId);
+        if (existing) {
+          console.log(`   ℹ️ Email already exists, skipping`);
+          return res.status(200).send('OK');
+        }
+      }
+
+      // Try to find conversation ID from previous emails
+      if (inReplyTo) {
+        const repliedEmail = await storage.getEmailByMessageId(inReplyTo);
+        if (repliedEmail?.conversationId) {
+          conversationId = repliedEmail.conversationId;
+        }
+      }
+
+      // If no conversation ID found, create one
+      if (!conversationId) {
+        conversationId = `conv-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      }
+
+      // Save the email
+      const emailData = insertEmailSchema.parse({
+        leadId: lead.id,
+        subject: subject,
+        body: htmlBody || textBody,
+        direction: 'received',
+        messageId: messageId || `msg-${Date.now()}`,
+        conversationId: conversationId,
+        fromEmail: senderEmail,
+        toEmail: toEmail || process.env.SENDGRID_FROM_EMAIL || null,
+        inReplyTo: inReplyTo,
+      });
+
+      await storage.createEmail(emailData);
+      console.log(`✅ Saved email from ${senderEmail} for lead ${lead.clientName}`);
+      
+      // Update lead status to "Replied"
+      await storage.updateLeadStatus(lead.id, 'Replied');
+      
+      // Add notification
+      const { addEmailNotification } = await import('./index');
+      addEmailNotification(lead.id, lead.clientName, senderEmail, subject);
+      console.log(`🔔 Added notification for ${lead.clientName}`);
+      
+      res.status(200).send('OK');
+    } catch (error: any) {
+      console.error('❌ Error processing inbound email webhook:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Test SendGrid email sending
   app.post("/api/debug/test-sendgrid", async (req, res) => {
     try {
@@ -300,6 +408,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log(`   Conversation ID: ${lastEmail.conversationId}`);
       }
 
+      // Determine the email subject - add "Re:" only if not already present
+      let emailSubject = subject;
+      if (lastEmail) {
+        const baseSubject = lastEmail.subject.replace(/^Re:\s*/i, '');
+        emailSubject = `Re: ${baseSubject}`;
+      }
+
       // Send email using configured provider
       let result: { success?: boolean; messageId?: string; conversationId?: string; error?: string };
       
@@ -307,7 +422,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Use SendGrid (auto: API then fallback to SMTP on auth errors)
         result = await sendEmailViaSendGridAuto({
           to: lead.email,
-          subject: lastEmail ? `Re: ${lastEmail.subject}` : subject,
+          subject: emailSubject,
           text: body,
           html: body.replace(/\n/g, '<br>'),
           inReplyTo: lastEmail?.messageId || undefined,
@@ -333,7 +448,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const emailData = insertEmailSchema.parse({
         leadId: lead.id,
-        subject: lastEmail ? `Re: ${lastEmail.subject}` : subject,
+        subject: emailSubject,
         body,
         direction: "sent",
         messageId: result.messageId || null,
