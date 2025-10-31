@@ -95,6 +95,12 @@ export default function CompanyLeads() {
     updateStatusMutation.mutate({ leadId, status: newStatus });
   };
 
+  // Get the last received email's subject for the lead being replied to
+  const lastReceivedEmail = emails
+    .filter(email => email.direction === "received")
+    .sort((a, b) => new Date(b.sentAt).getTime() - new Date(a.sentAt).getTime())
+    [0];
+
   if (companyLoading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -163,6 +169,7 @@ export default function CompanyLeads() {
           setReplyingToLead(null);
         }}
         onSend={handleSendEmail}
+        lastReceivedEmailSubject={lastReceivedEmail?.subject}
       />
 
       {selectedLead && (

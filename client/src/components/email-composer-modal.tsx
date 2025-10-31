@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { X, Send, Loader2 } from "lucide-react";
 import {
   Dialog,
@@ -18,12 +18,27 @@ interface EmailComposerModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSend: (subject: string, body: string) => Promise<void>;
+  lastReceivedEmailSubject?: string;
 }
 
-export function EmailComposerModal({ lead, isOpen, onClose, onSend }: EmailComposerModalProps) {
+export function EmailComposerModal({ lead, isOpen, onClose, onSend, lastReceivedEmailSubject }: EmailComposerModalProps) {
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
   const [isSending, setIsSending] = useState(false);
+
+  // Auto-populate subject when replying to a received email
+  useEffect(() => {
+    if (isOpen && lastReceivedEmailSubject) {
+      // Check if the subject already has "Re:" prefix
+      const subjectWithReply = lastReceivedEmailSubject.startsWith("Re:") 
+        ? lastReceivedEmailSubject 
+        : `Re: ${lastReceivedEmailSubject}`;
+      setSubject(subjectWithReply);
+    } else if (isOpen && !lastReceivedEmailSubject) {
+      // Clear subject if opening for a new email (no reply context)
+      setSubject("");
+    }
+  }, [isOpen, lastReceivedEmailSubject]);
 
   const handleSend = async () => {
     if (!subject.trim() || !body.trim()) return;

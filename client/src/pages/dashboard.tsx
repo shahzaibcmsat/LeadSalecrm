@@ -92,6 +92,12 @@ export default function Dashboard() {
     updateStatusMutation.mutate({ leadId, status: newStatus });
   };
 
+  // Get the last received email's subject for the lead being replied to
+  const lastReceivedEmail = emails
+    .filter(email => email.direction === "received")
+    .sort((a, b) => new Date(b.sentAt).getTime() - new Date(a.sentAt).getTime())
+    [0];
+
   const stats = {
     total: leads.length,
     active: leads.filter(l => !l.status.includes("Closed")).length,
@@ -215,6 +221,7 @@ export default function Dashboard() {
           setReplyingToLead(null);
         }}
         onSend={handleSendEmail}
+        lastReceivedEmailSubject={lastReceivedEmail?.subject}
       />
 
       {selectedLead && (

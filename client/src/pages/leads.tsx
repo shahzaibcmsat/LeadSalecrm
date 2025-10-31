@@ -129,6 +129,12 @@ export default function Leads() {
     updateStatusMutation.mutate({ leadId, status: newStatus });
   };
 
+  // Get the last received email's subject for the lead being replied to
+  const lastReceivedEmail = emails
+    .filter(email => email.direction === "received")
+    .sort((a, b) => new Date(b.sentAt).getTime() - new Date(a.sentAt).getTime())
+    [0];
+
   const filteredLeads = leads.filter((lead) => {
     const matchesSearch = 
       lead.clientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -256,6 +262,7 @@ export default function Leads() {
           setReplyingToLead(null);
         }}
         onSend={handleSendEmail}
+        lastReceivedEmailSubject={lastReceivedEmail?.subject}
       />
 
       <AddLeadDialog
