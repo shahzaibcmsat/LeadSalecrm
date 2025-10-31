@@ -130,9 +130,9 @@ export function AppSidebar() {
       </SidebarContent>
       <SidebarFooter className="p-4 border-t bg-fmd-green/5">
         <div className="flex items-center gap-2">
-          <div className="h-1.5 w-1.5 rounded-full bg-fmd-green animate-pulse"></div>
-          <div className="text-xs text-muted-foreground font-medium">
-            FMD Sales CRM Created by <a href="https://napollo.net/" target="_blank" rel="noopener noreferrer" className="text-fmd-green hover:text-fmd-green-dark font-semibold hover:underline">Napollo</a>.
+          <div className="h-1.5 w-1.5 rounded-full bg-green-400 animate-pulse"></div>
+          <div className="text-xs text-white font-medium">
+            FMD Sales CRM Created by <a href="https://napollo.net/" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:text-blue-600 font-semibold hover:underline">Napollo</a>.
           </div>
         </div>
       </SidebarFooter>
