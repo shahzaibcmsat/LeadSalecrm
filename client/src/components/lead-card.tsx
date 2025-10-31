@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Lead } from "@shared/schema";
-import { formatDistanceToNow } from "date-fns";
+import { formatDistanceToNow, format } from "date-fns";
 import { useUnreadEmailCounts } from "@/lib/notificationStore";
 
 interface LeadCardProps {
@@ -87,7 +87,11 @@ export function LeadCard({ lead, onReply, onViewDetails, onStatusChange }: LeadC
           )}
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <Clock className="w-3.5 h-3.5" />
-            <span>Added {formatDistanceToNow(new Date(lead.createdAt), { addSuffix: true })}</span>
+            <span>
+              Added {formatDistanceToNow(new Date(lead.createdAt), { addSuffix: true })} 
+              <span className="mx-1">•</span>
+              {format(new Date(lead.createdAt), 'MMM d, yyyy')}
+            </span>
           </div>
         </div>
         <div className="flex flex-col items-end gap-2">
