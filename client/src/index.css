@@ -325,4 +325,49 @@
   .border.hover-elevate:not(.no-hover-interaction-elevate)::after {
     inset: -1px;
   }
+
+  /* Email HTML content styling */
+  .email-content {
+    @apply text-sm text-muted-foreground;
+  }
+
+  .email-content p {
+    @apply mb-2;
+  }
+
+  .email-content a {
+    @apply text-primary underline;
+  }
+
+  .email-content ul,
+  .email-content ol {
+    @apply ml-4 mb-2;
+  }
+
+  .email-content li {
+    @apply mb-1;
+  }
+
+  .email-content strong,
+  .email-content b {
+    @apply font-semibold;
+  }
+
+  .email-content em,
+  .email-content i {
+    @apply italic;
+  }
+
+  .email-content img {
+    @apply max-w-full h-auto;
+  }
+
+  .email-content table {
+    @apply border-collapse w-full mb-2;
+  }
+
+  .email-content td,
+  .email-content th {
+    @apply border border-border px-2 py-1;
+  }
 }

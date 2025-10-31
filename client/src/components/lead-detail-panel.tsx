@@ -1,4 +1,4 @@
-import { X, Mail, Clock, User, Edit } from "lucide-react";
+import { X, Mail, Clock, User, Edit, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/select";
 import { Lead, Email } from "@shared/schema";
 import { formatDistanceToNow, format } from "date-fns";
+import { useState } from "react";
 
 interface LeadDetailPanelProps {
   lead: Lead | null;
@@ -31,7 +32,27 @@ const statusOptions = [
 ];
 
 export function LeadDetailPanel({ lead, emails, onClose, onStatusChange, onReply, onEdit }: LeadDetailPanelProps) {
+  const [expandedEmails, setExpandedEmails] = useState<Set<string>>(new Set());
+
   if (!lead) return null;
+
+  const toggleEmailExpand = (emailId: string) => {
+    setExpandedEmails(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(emailId)) {
+        newSet.delete(emailId);
+      } else {
+        newSet.add(emailId);
+      }
+      return newSet;
+    });
+  };
+
+  const stripHtmlTags = (html: string) => {
+    const div = document.createElement('div');
+    div.innerHTML = html;
+    return div.textContent || div.innerText || '';
+  };
 
   return (
     <div className="fixed right-0 top-0 h-screen w-96 bg-card border-l shadow-xl overflow-y-auto z-50" data-testid="panel-lead-detail">
@@ -123,24 +144,56 @@ export function LeadDetailPanel({ lead, emails, onClose, onStatusChange, onReply
             </div>
           ) : (
             <div className="space-y-3">
-              {emails.map((email) => (
-                <div key={email.id} className="border rounded-lg p-3 space-y-2" data-testid={`email-item-${email.id}`}>
-                  <div className="flex items-start justify-between gap-2">
-                    <Badge variant={email.direction === "sent" ? "default" : "secondary"}>
-                      {email.direction === "sent" ? "Sent" : "Received"}
-                    </Badge>
-                    <span className="text-xs text-muted-foreground">
-                      {format(new Date(email.sentAt), "MMM d, h:mm a")}
-                    </span>
+              {emails.map((email) => {
+                const isExpanded = expandedEmails.has(email.id);
+                const isHtml = email.body.trim().startsWith('<');
+                
+                return (
+                  <div key={email.id} className="border rounded-lg p-3 space-y-2" data-testid={`email-item-${email.id}`}>
+                    <div className="flex items-start justify-between gap-2">
+                      <Badge variant={email.direction === "sent" ? "default" : "secondary"}>
+                        {email.direction === "sent" ? "Sent" : "Received"}
+                      </Badge>
+                      <span className="text-xs text-muted-foreground">
+                        {format(new Date(email.sentAt), "MMM d, h:mm a")}
+                      </span>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium">{email.subject}</p>
+                      <div className="mt-1">
+                        {isHtml ? (
+                          <div 
+                            className={`email-content ${!isExpanded ? 'line-clamp-3' : ''}`}
+                            dangerouslySetInnerHTML={{ __html: email.body }}
+                          />
+                        ) : (
+                          <p className={`text-sm text-muted-foreground whitespace-pre-wrap ${!isExpanded ? 'line-clamp-3' : ''}`}>
+                            {email.body}
+                          </p>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="mt-2 h-auto p-0 text-xs"
+                          onClick={() => toggleEmailExpand(email.id)}
+                        >
+                          {isExpanded ? (
+                            <>
+                              <ChevronUp className="w-3 h-3 mr-1" />
+                              Show less
+                            </>
+                          ) : (
+                            <>
+                              <ChevronDown className="w-3 h-3 mr-1" />
+                              Read full message
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-sm font-medium">{email.subject}</p>
-                    <p className="text-xs text-muted-foreground line-clamp-3 mt-1 font-mono">
-                      {email.body}
-                    </p>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
