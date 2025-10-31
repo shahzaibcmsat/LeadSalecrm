@@ -76,16 +76,33 @@ DATABASE_URL=postgresql://user:password@host:port/database
 
 ### Email Integration
 
-This system integrates with **Microsoft Outlook** for sending and receiving emails, and **SendGrid** as a fallback.
+This system supports two email providers: **Microsoft Outlook** (default, recommended) and **SendGrid** (alternative).
 
-#### Microsoft Outlook (Primary)
+**Default Provider:** Microsoft Outlook/Microsoft 365
+
+To switch providers, set in `.env`:
+```env
+EMAIL_PROVIDER=microsoft  # Default (recommended for full threading support)
+# or
+EMAIL_PROVIDER=sendgrid   # Alternative
+```
+
+#### Microsoft Outlook (Default - Recommended)
 Configure Microsoft Graph API credentials in `.env`:
 ```env
-MICROSOFT_CLIENT_ID=your-client-id
-MICROSOFT_CLIENT_SECRET=your-client-secret
-MICROSOFT_TENANT_ID=your-tenant-id
-MICROSOFT_USER_EMAIL=your-email@company.com
+EMAIL_PROVIDER=microsoft
+AZURE_CLIENT_ID=your-client-id
+AZURE_CLIENT_SECRET=your-client-secret
+AZURE_TENANT_ID=your-tenant-id
+EMAIL_FROM_ADDRESS=your-email@company.com
 ```
+
+**Advantages:**
+- ✅ Full email threading with createReply API
+- ✅ Automatic email reply detection
+- ✅ Two-way email sync (send & receive)
+- ✅ Conversation tracking
+- ✅ Native Outlook integration
 
 **Setup:**
 1. Register an app in Azure AD
@@ -95,24 +112,37 @@ MICROSOFT_USER_EMAIL=your-email@company.com
 
 See `MICROSOFT_EMAIL_SETUP.md` for detailed setup instructions.
 
-#### SendGrid (Fallback)
+#### SendGrid (Alternative)
 Configure SendGrid API in `.env`:
 ```env
+EMAIL_PROVIDER=sendgrid
 SENDGRID_API_KEY=your-api-key
 SENDGRID_FROM_EMAIL=your-verified-sender@example.com
 SENDGRID_REGION=eu  # or 'us' for US region
 ```
+
+**Advantages:**
+- ✅ Simple setup
+- ✅ High deliverability
+- ✅ Email threading via headers
+
+**Note:** Requires SendGrid Inbound Parse webhook for receiving replies.
 
 **Setup:**
 1. Create a SendGrid account
 2. Generate an API key with Mail Send permissions
 3. Verify your sender email address
 4. Set the appropriate region (eu or us)
+5. Configure Inbound Parse webhook for reply notifications
 
-See `SENDGRID-SETUP.md` for detailed setup instructions.
+See `SENDGRID-SETUP.md` and `SENDGRID-INBOUND-SETUP.md` for detailed setup instructions.
 
 #### Email Notifications
-The system automatically polls for new email replies every 2 minutes and displays notifications in the header bell icon. Notifications persist across page refreshes and are cleared when you open the lead's details.
+The system automatically displays notifications in the header bell icon when leads reply to emails:
+- **Microsoft Outlook**: Polls for new emails every 2 minutes
+- **SendGrid**: Receives replies via Inbound Parse webhook
+
+Notifications persist across page refreshes and are cleared when you open the lead's details.
 
 ## Scripts
 
