@@ -285,23 +285,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Subject and body are required" });
       }
 
-  const provider = getProvider();
-  console.log(`📧 Sending email via ${provider} provider...`);
+      // Get existing emails to find conversation thread
+      const existingEmails = await storage.getEmailsByLeadId(lead.id);
+      const lastEmail = existingEmails.length > 0 
+        ? existingEmails.sort((a, b) => new Date(b.sentAt).getTime() - new Date(a.sentAt).getTime())[0]
+        : null;
+
+      const provider = getProvider();
+      console.log(`📧 Sending email via ${provider} provider...`);
+      
+      if (lastEmail) {
+        console.log(`🧵 Found existing conversation - replying to thread`);
+        console.log(`   Last Message ID: ${lastEmail.messageId}`);
+        console.log(`   Conversation ID: ${lastEmail.conversationId}`);
+      }
 
       // Send email using configured provider
       let result: { success?: boolean; messageId?: string; conversationId?: string; error?: string };
       
-  if (provider === 'sendgrid') {
+      if (provider === 'sendgrid') {
         // Use SendGrid (auto: API then fallback to SMTP on auth errors)
         result = await sendEmailViaSendGridAuto({
           to: lead.email,
-          subject,
+          subject: lastEmail ? `Re: ${lastEmail.subject}` : subject,
           text: body,
           html: body.replace(/\n/g, '<br>'),
+          inReplyTo: lastEmail?.messageId || undefined,
+          references: lastEmail?.messageId || undefined,
         });
         
         if (!result.success) {
           throw new Error(result.error || 'Failed to send email via SendGrid');
+        }
+        
+        // Preserve conversation ID from previous emails
+        if (lastEmail?.conversationId && !result.conversationId) {
+          result.conversationId = lastEmail.conversationId;
         }
       } else {
         // Use Microsoft Graph (default)
@@ -314,21 +333,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const emailData = insertEmailSchema.parse({
         leadId: lead.id,
-        subject,
+        subject: lastEmail ? `Re: ${lastEmail.subject}` : subject,
         body,
         direction: "sent",
         messageId: result.messageId || null,
         conversationId: result.conversationId || null,
         fromEmail: fromEmail || null,
         toEmail: lead.email,
-        inReplyTo: null,
+        inReplyTo: lastEmail?.messageId || null,
       });
 
       const email = await storage.createEmail(emailData);
       
       await storage.updateLeadStatus(lead.id, "Contacted");
 
-  res.json({ success: true, email, provider });
+      res.json({ success: true, email, provider });
     } catch (error: any) {
       console.error("Error sending email:", error);
       res.status(500).json({ message: error.message || "Failed to send email" });

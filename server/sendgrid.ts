@@ -52,6 +52,8 @@ export interface SendGridEmailData {
   text: string;
   html?: string;
   replyTo?: string;
+  inReplyTo?: string;  // For email threading - Message-ID of the email being replied to
+  references?: string;  // For email threading - Message-ID reference chain
 }
 
 /**
@@ -78,6 +80,10 @@ export async function sendEmailViaSendGrid(emailData: SendGridEmailData): Promis
     console.log(`   From: ${SENDGRID_FROM_NAME} <${SENDGRID_FROM_EMAIL}>`);
     console.log(`   To: ${emailData.to}`);
     console.log(`   Subject: ${emailData.subject}`);
+    
+    if (emailData.inReplyTo) {
+      console.log(`   🧵 Threading: In-Reply-To: ${emailData.inReplyTo}`);
+    }
 
     // Prepare email message
     const msg: MailDataRequired = {
@@ -94,6 +100,17 @@ export async function sendEmailViaSendGrid(emailData: SendGridEmailData): Promis
     // Add reply-to if provided
     if (emailData.replyTo) {
       msg.replyTo = emailData.replyTo;
+    }
+    
+    // Add email threading headers for proper conversation threading
+    if (emailData.inReplyTo || emailData.references) {
+      (msg as any).headers = {};
+      if (emailData.inReplyTo) {
+        (msg as any).headers['In-Reply-To'] = emailData.inReplyTo;
+      }
+      if (emailData.references) {
+        (msg as any).headers['References'] = emailData.references;
+      }
     }
 
     // Send email
@@ -154,14 +171,27 @@ export async function sendEmailViaSendGridSMTP(emailData: SendGridEmailData): Pr
       },
     });
 
-    const info = await transporter.sendMail({
+    const mailOptions: any = {
       from: `${SENDGRID_FROM_NAME} <${SENDGRID_FROM_EMAIL}>`,
       to: emailData.to,
       subject: emailData.subject,
       text: emailData.text,
       html: emailData.html || emailData.text.replace(/\n/g, '<br>'),
       replyTo: emailData.replyTo,
-    });
+    };
+    
+    // Add email threading headers
+    if (emailData.inReplyTo || emailData.references) {
+      mailOptions.headers = {};
+      if (emailData.inReplyTo) {
+        mailOptions.headers['In-Reply-To'] = emailData.inReplyTo;
+      }
+      if (emailData.references) {
+        mailOptions.headers['References'] = emailData.references;
+      }
+    }
+
+    const info = await transporter.sendMail(mailOptions);
 
     console.log('✅ Email sent via SendGrid SMTP:', info.messageId);
     return { success: true, messageId: info.messageId };
