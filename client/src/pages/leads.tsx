@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import { Lead, Email, Company } from "@shared/schema";
 import { LeadCard } from "@/components/lead-card";
 import { EmailComposerModal } from "@/components/email-composer-modal";
@@ -21,6 +22,7 @@ import { useToast } from "@/hooks/use-toast";
 import { notificationStore } from "@/lib/notificationStore";
 
 export default function Leads() {
+  const [location, setLocation] = useLocation();
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [isComposerOpen, setIsComposerOpen] = useState(false);
   const [isAddLeadOpen, setIsAddLeadOpen] = useState(false);
@@ -43,6 +45,21 @@ export default function Leads() {
     queryKey: ['/api/emails', selectedLead?.id],
     enabled: !!selectedLead,
   });
+
+  // Handle selected lead from URL query parameter
+  useEffect(() => {
+    const params = new URLSearchParams(location.split('?')[1] || '');
+    const selectedId = params.get('selected');
+    
+    if (selectedId && leads.length > 0) {
+      const lead = leads.find(l => l.id === selectedId);
+      if (lead) {
+        setSelectedLead(lead);
+        // Clear the query parameter after selecting
+        setLocation('/leads');
+      }
+    }
+  }, [location, leads, setLocation]);
 
   // When opening a lead, clear its unread counter and trigger a quick inbox sync
   useEffect(() => {

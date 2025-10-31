@@ -8,14 +8,39 @@ type State = {
 
 type Listener = () => void;
 
-const state: State = {
-  unreadTotal: 0,
-  perLeadUnread: {},
-};
+const STORAGE_KEY = "fmd-email-notifications";
+
+// Load initial state from localStorage
+function loadState(): State {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      return JSON.parse(stored);
+    }
+  } catch (error) {
+    console.error("Failed to load notification state from localStorage", error);
+  }
+  return {
+    unreadTotal: 0,
+    perLeadUnread: {},
+  };
+}
+
+// Save state to localStorage
+function saveState(state: State) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch (error) {
+    console.error("Failed to save notification state to localStorage", error);
+  }
+}
+
+const state: State = loadState();
 
 const listeners = new Set<Listener>();
 
 function emit() {
+  saveState(state);
   listeners.forEach((l) => l());
 }
 

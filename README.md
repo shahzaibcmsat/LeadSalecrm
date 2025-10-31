@@ -1,14 +1,16 @@
-# CRM Lead Management System
+# FMD Lead Management System
 
-A comprehensive CRM application for managing sales leads with email sending and Google Sheets import capabilities.
+A comprehensive CRM application for managing sales leads with real-time email integration, persistent notifications, and company organization features.
 
 ## Features
 
 - 📊 **Lead Management**: Track and manage sales leads with different statuses
-- ✉️ **Email Integration**: Send emails to leads (console logging in development, SMTP in production)
-- 📥 **Import Leads**: Import from Excel/CSV files or Google Sheets
+- ✉️ **Email Integration**: Send and receive emails with Microsoft Outlook integration
+- 🔔 **Real-time Notifications**: Persistent notification bell with unread email counts that survive page refreshes
+- 📥 **Import Leads**: Import from Excel/CSV files
+- 🏢 **Company Management**: Organize leads by company with filtering capabilities
 - 📈 **Dashboard**: View statistics and recent leads
-- 🔍 **Search & Filter**: Easily find and filter leads
+- 🔍 **Search & Filter**: Easily find and filter leads by name, email, status, or company
 - 💾 **Database**: PostgreSQL with Drizzle ORM
 
 ## Technology Stack
@@ -72,51 +74,45 @@ Set your PostgreSQL connection string in `.env`:
 DATABASE_URL=postgresql://user:password@host:port/database
 ```
 
-### Email Sending (Optional)
+### Email Integration
 
-#### Development Mode (Default)
-Emails are logged to console - no configuration needed.
+This system integrates with **Microsoft Outlook** for sending and receiving emails, and **SendGrid** as a fallback.
 
-#### Production SMTP
-To send real emails, configure SMTP in `.env`:
+#### Microsoft Outlook (Primary)
+Configure Microsoft Graph API credentials in `.env`:
 ```env
-EMAIL_FROM=your-email@example.com
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-SMTP_SECURE=false
-SMTP_USER=your-email@example.com
-SMTP_PASS=your-app-password
+MICROSOFT_CLIENT_ID=your-client-id
+MICROSOFT_CLIENT_SECRET=your-client-secret
+MICROSOFT_TENANT_ID=your-tenant-id
+MICROSOFT_USER_EMAIL=your-email@company.com
 ```
 
-**Gmail Setup:**
-1. Enable 2-factor authentication
-2. Create an App Password: Google Account → Security → App Passwords
-3. Use the app password as `SMTP_PASS`
+**Setup:**
+1. Register an app in Azure AD
+2. Add Microsoft Graph API permissions (Mail.ReadWrite, Mail.Send)
+3. Generate a client secret
+4. Configure the credentials in `.env`
 
-### Google Sheets Import (Optional)
+See `MICROSOFT_EMAIL_SETUP.md` for detailed setup instructions.
 
-#### Public Sheets
-No configuration needed for publicly accessible sheets.
+#### SendGrid (Fallback)
+Configure SendGrid API in `.env`:
+```env
+SENDGRID_API_KEY=your-api-key
+SENDGRID_FROM_EMAIL=your-verified-sender@example.com
+SENDGRID_REGION=eu  # or 'us' for US region
+```
 
-#### Private Sheets - Service Account (Recommended)
-1. Create a Google Cloud project
-2. Enable Google Sheets API
-3. Create a service account and download JSON key
-4. Share your sheet with the service account email
-5. Add to `.env`:
-   ```env
-   GOOGLE_SERVICE_ACCOUNT_JSON={"type":"service_account",...}
-   ```
+**Setup:**
+1. Create a SendGrid account
+2. Generate an API key with Mail Send permissions
+3. Verify your sender email address
+4. Set the appropriate region (eu or us)
 
-#### Private Sheets - OAuth
-1. Create OAuth credentials in Google Cloud Console
-2. Get refresh token using OAuth flow
-3. Add to `.env`:
-   ```env
-   GOOGLE_CLIENT_ID=your-client-id
-   GOOGLE_CLIENT_SECRET=your-client-secret
-   GOOGLE_REFRESH_TOKEN=your-refresh-token
-   ```
+See `SENDGRID-SETUP.md` for detailed setup instructions.
+
+#### Email Notifications
+The system automatically polls for new email replies every 2 minutes and displays notifications in the header bell icon. Notifications persist across page refreshes and are cleared when you open the lead's details.
 
 ## Scripts
 
@@ -142,8 +138,10 @@ No configuration needed for publicly accessible sheets.
 - `id` - UUID primary key
 - `leadId` - Reference to lead
 - `subject` - Email subject
-- `body` - Email body
+- `body` - Email body (supports HTML)
 - `direction` - 'sent' or 'received'
+- `messageId` - Microsoft Graph message ID for tracking
+- `conversationId` - Thread ID for grouping emails
 - `sentAt` - Timestamp
 
 ### Companies Table
@@ -162,10 +160,11 @@ No configuration needed for publicly accessible sheets.
 
 ### Emails
 - `GET /api/emails/:leadId` - Get emails for a lead
+- `POST /api/emails/sync` - Manually trigger email sync
+- `GET /api/notifications/emails` - Get new email notifications
 
 ### Import
 - `POST /api/import/file` - Upload Excel/CSV
-- `POST /api/import/sheets` - Import from Google Sheets URL
 
 ### Companies
 - `GET /api/companies` - Get all companies
